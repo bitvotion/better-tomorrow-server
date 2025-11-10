@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config()
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
 const port = process.env.PORT || 3000
 
@@ -27,6 +27,44 @@ app.get('/', (req, res) => {
 async function run() {
     try {
         await client.connect()
+
+        const db = client.db("better_tomorrow_DB")
+        const eventsCollection = db.collection("events")
+
+        // API
+
+        app.post('/events', async (req, res) => {
+            const newEvent = req.body
+            const result = await eventsCollection.insertOne(newEvent)
+            res.send(result)
+        })
+
+        app.get('/events', async (req, res) => {
+            const email = req.query.email
+            const query = {}
+            if (email) {
+                query.email = email
+            }
+            const cursor = eventsCollection.find(query)
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
+        app.get('/events/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await eventsCollection.findOne(query)
+            res.send(result)
+        })
+
+        app.delete('/events/:id', async(req,res)=>{
+            const id = req.params.id
+            const query = { _id: new ObjectId(id)}
+            const result = await eventsCollection.deleteOne(query)
+            res.send(result)
+        })
+
+
 
         // Send Ping to confirm connection
         await client.db("admin").command({ ping: 1 })

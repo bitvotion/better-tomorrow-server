@@ -30,6 +30,7 @@ async function run() {
 
         const db = client.db("better_tomorrow_DB")
         const eventsCollection = db.collection("events")
+        const usersCollection = db.collection("users")
 
         // API
 
@@ -43,9 +44,18 @@ async function run() {
             const email = req.query.email
             const query = {}
             if (email) {
-                query.email = email
+                query.creatorEmail = email
             }
-            const cursor = eventsCollection.find(query)
+            const cursor = eventsCollection.find(query).sort({eventDate: 1})
+            const result = await cursor.toArray()
+            res.send(result)
+        })
+
+        app.get('/events/upcoming', async (req, res) => {
+            const query = {
+                eventDate : {$gte: new Date().toISOString()}
+            }
+            const cursor = eventsCollection.find(query).sort({eventDate: 1})
             const result = await cursor.toArray()
             res.send(result)
         })
@@ -57,14 +67,32 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/events/:id', async(req,res)=>{
+        app.delete('/events/:id', async (req, res) => {
             const id = req.params.id
-            const query = { _id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await eventsCollection.deleteOne(query)
             res.send(result)
         })
 
+        app.get('/users', async (req, res) => {
+            const cursor = usersCollection.find()
+            const result = await cursor.toArray()
+            res.send(result)
+        })
 
+        app.post('/users', async (req, res) => {
+            const newUser = req.body
+            const email = req.body.email
+            const query = { email: email }
+            const existingUser = await usersCollection.findOne(query)
+            if (existingUser) {
+                res.send({ message: "User already exist" })
+            }
+            else {
+                const result = await usersCollection.insertOne(newUser)
+                res.send(result)
+            }
+        })
 
         // Send Ping to confirm connection
         await client.db("admin").command({ ping: 1 })

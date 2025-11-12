@@ -112,11 +112,31 @@ async function run() {
             res.status(200).send(result)
         })
 
-        app.get('joined-events', async(req,res)=>{
+        app.get('/joined-events', async (req, res) => {
             const email = req.query.email
 
-            const joinedEvents = await joinedCollection.find({email: email})
+            const joinedEvents = await joinedCollection.find({ userEmail: email }).toArray()
+
+            if (!joinedEvents.length) return res.json([])
+
+            const eventIds = joinedEvents.map(event => new ObjectId(event.eventId))
+
+            const matchedEvents = await eventsCollection.find({ _id: { $in: eventIds } }).toArray()
+
+            res.send(matchedEvents)
         })
+
+        // app.get('joined-events', async(req,res)=>{
+        //     const email = req.query.email
+
+        //     const joinedEvents = await joinedCollection.find({userEmail: email})
+
+        //     const eventIds = joinedEvents.map(item=>item.eventId)
+
+        //     const matchedEvents = await eventsCollection.find({_id: new ObjectId(eventIds)}).toArray()
+
+
+        // })
 
         app.get('/users', async (req, res) => {
             const cursor = usersCollection.find()

@@ -31,6 +31,7 @@ async function run() {
         const db = client.db("better_tomorrow_DB")
         const eventsCollection = db.collection("events")
         const usersCollection = db.collection("users")
+        const joinedCollection = db.collection("joined")
 
         // API
 
@@ -46,16 +47,16 @@ async function run() {
             if (email) {
                 query.creatorEmail = email
             }
-            const cursor = eventsCollection.find(query).sort({eventDate: 1})
+            const cursor = eventsCollection.find(query).sort({ eventDate: 1 })
             const result = await cursor.toArray()
             res.send(result)
         })
 
         app.get('/events/upcoming', async (req, res) => {
             const query = {
-                eventDate : {$gte: new Date().toISOString()}
+                eventDate: { $gte: new Date().toISOString() }
             }
-            const cursor = eventsCollection.find(query).sort({eventDate: 1})
+            const cursor = eventsCollection.find(query).sort({ eventDate: 1 })
             const result = await cursor.toArray()
             res.send(result)
         })
@@ -72,6 +73,49 @@ async function run() {
             const query = { _id: new ObjectId(id) }
             const result = await eventsCollection.deleteOne(query)
             res.send(result)
+        })
+
+        app.post('/joined', async (req, res) => {
+            const joinEventData = req.body
+            if (!joinEventData.userEmail || !joinEventData.eventId) {
+                return res.status(400).send({ message: "Missing user or event information" })
+            }
+            const query = {
+                userEmail: joinEventData.userEmail,
+                eventId: joinEventData.eventId
+            }
+
+            const alreadyJoined = await joinedCollection.findOne(query)
+
+            if (alreadyJoined) {
+                return res.status(409).send({ message: "You have already joined this event" })
+            }
+
+            const newJoin = {
+                ...joinEventData,
+                joinedAt: new Date()
+            }
+
+            result = await joinedCollection.insertOne(newJoin)
+
+            res.send(result)
+        })
+
+        app.get('/joined', async (req, res) => {
+            const email = req.query.email
+            const query = {}
+            if (email) {
+                query.userEmail = email
+            }
+            const cursor = joinedCollection.find(query)
+            const result = await cursor.toArray()
+            res.status(200).send(result)
+        })
+
+        app.get('joined-events', async(req,res)=>{
+            const email = req.query.email
+
+            const joinedEvents = await joinedCollection.find({email: email})
         })
 
         app.get('/users', async (req, res) => {

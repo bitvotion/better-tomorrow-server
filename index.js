@@ -52,10 +52,51 @@ async function run() {
             res.send(result)
         })
 
+        app.patch('/events/:id', async (req, res) => {
+            const id = req.params.id
+            const updateEvent = req.body
+            const query = { _id: new ObjectId(id) }
+            const update = {
+                $set: {
+                    title: updateEvent.title,
+                    description: updateEvent.description,
+                    eventType: updateEvent.eventType,
+                    thumbnailUrl: updateEvent.thumbnailUrl,
+                    location: updateEvent.location,
+                    eventDate: updateEvent.eventDate,
+                    // updatedAt: new Date(),
+                }
+            }
+            const options = {}
+            const result = await eventsCollection.updateOne(query, update, options)
+            res.send(result)
+
+        })
+
+        app.delete('/events/:id', async (req, res) => {
+            const id = req.params.id
+            const query = {_id: new ObjectId(id)}
+            const result = await usersCollection.deleteOne(query)
+            res.send(result)
+        })
+
         app.get('/events/upcoming', async (req, res) => {
+
+            const { eventType, search } = req.query
+
+            // Upcoming events
             const query = {
                 eventDate: { $gte: new Date().toISOString() }
             }
+            // Filter by Event Type
+            if (eventType && eventType !== "All") {
+                query.eventType = eventType
+            }
+            // Search by Title 
+            if (search) {
+                query.title = { $regex: search, $options: "i" }
+            }
+
             const cursor = eventsCollection.find(query).sort({ eventDate: 1 })
             const result = await cursor.toArray()
             res.send(result)
@@ -121,22 +162,21 @@ async function run() {
 
             const eventIds = joinedEvents.map(event => new ObjectId(event.eventId))
 
-            const matchedEvents = await eventsCollection.find({ _id: { $in: eventIds } }).toArray()
+            const matchedEvents = await eventsCollection.find({ _id: { $in: eventIds } }).sort({ eventDate: 1 }).toArray()
 
             res.send(matchedEvents)
         })
 
-        // app.get('joined-events', async(req,res)=>{
-        //     const email = req.query.email
-
-        //     const joinedEvents = await joinedCollection.find({userEmail: email})
-
-        //     const eventIds = joinedEvents.map(item=>item.eventId)
-
-        //     const matchedEvents = await eventsCollection.find({_id: new ObjectId(eventIds)}).toArray()
-
-
-        // })
+        app.get('/myevents', async (req, res) => {
+            const email = req.query.email
+            const query = {}
+            if (email) {
+                query.creatorEmail = email
+            }
+            const cursor = eventsCollection.find(query).sort({ eventDate: 1 })
+            const result = await cursor.toArray()
+            res.send(result)
+        })
 
         app.get('/users', async (req, res) => {
             const cursor = usersCollection.find()

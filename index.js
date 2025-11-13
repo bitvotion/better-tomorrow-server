@@ -5,6 +5,12 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
 const port = process.env.PORT || 3000
 
+// {
+//     origin: "*",
+//     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+//     credentials: true,
+// }
+
 // Middleware
 app.use(cors())
 app.use(express.json())
@@ -55,6 +61,18 @@ async function run() {
         app.patch('/events/:id', async (req, res) => {
             const id = req.params.id
             const updateEvent = req.body
+            const userEmail = req.body.email
+
+            const event = await eventsCollection.findOne({ _id: new ObjectId(id) })
+
+            if (!event) {
+                return res.status(404).send({ message: "Event not found" });
+            }
+
+            if (event.creatorEmail !== userEmail) {
+                return res.status(403).send({ message: "You are not allowed to edit this event" });
+            }
+
             const query = { _id: new ObjectId(id) }
             const update = {
                 $set: {
@@ -64,7 +82,7 @@ async function run() {
                     thumbnailUrl: updateEvent.thumbnailUrl,
                     location: updateEvent.location,
                     eventDate: updateEvent.eventDate,
-                    // updatedAt: new Date(),
+                    updatedAt: new Date(),
                 }
             }
             const options = {}
@@ -75,9 +93,18 @@ async function run() {
 
         app.delete('/events/:id', async (req, res) => {
             const id = req.params.id
+            const userEmail = req.body.email
+            const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
+            if (!event) {
+                return res.status(404).send({ message: "Event not found" });
+            }
+            if (event.creatorEmail !== userEmail) {
+                return res.status(403).send({ message: "You are not allowed to delete this event" });
+            }
             const query = { _id: new ObjectId(id) }
             const result = await usersCollection.deleteOne(query)
             res.send(result)
+
         })
 
         app.get('/events/upcoming', async (req, res) => {
@@ -206,6 +233,7 @@ async function run() {
 
     }
 }
+
 run().catch(console.dir)
 
 app.listen(port, () => {

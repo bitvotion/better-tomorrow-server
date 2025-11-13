@@ -6,7 +6,11 @@ const app = express()
 const port = process.env.PORT || 3000
 
 // Middleware
-app.use(cors())
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    credentials: true,
+}))
 app.use(express.json())
 
 const uri = process.env.MONGODB_URI;

@@ -11,9 +11,43 @@ const port = process.env.PORT || 3000
 //     credentials: true,
 // }
 
+const admin = require("firebase-admin");
+
+const serviceAccount = require("./better-tomorrow-firebase-adminsdk.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+
 // Middleware
 app.use(cors())
 app.use(express.json())
+
+const logger = (req, res, next) => {
+    next()
+}
+
+const verifyFireBaseToken = async (req, res, next) => {
+
+    if(!req.headers.authorization){
+        return res.status(401).send({message: 'Unauthorized Access'})
+    }
+    const token = req.headers.authorization.split(' ')[1]
+    if(!token){
+        return res.status(401).send({message: 'Unauthorized Access'})
+    }
+    try{
+        const userInfo = await admin.auth().verifyIdToken(token)
+        req.token_email = userInfo.email
+        console.log('Here', userInfo);
+        next()
+    }
+    catch{
+        return res.status(401).send({message: 'Unauthorized Access'})
+    }
+    next()
+}
 
 const uri = process.env.MONGODB_URI;
 
@@ -94,6 +128,7 @@ async function run() {
         app.delete('/events/:id', async (req, res) => {
             const id = req.params.id
             const userEmail = req.body.email
+            console.log(req.headers);
             const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
             if (!event) {
                 return res.status(404).send({ message: "Event not found" });
@@ -136,12 +171,7 @@ async function run() {
             res.send(result)
         })
 
-        app.delete('/events/:id', async (req, res) => {
-            const id = req.params.id
-            const query = { _id: new ObjectId(id) }
-            const result = await eventsCollection.deleteOne(query)
-            res.send(result)
-        })
+
 
         app.post('/joined', async (req, res) => {
             const joinEventData = req.body
@@ -194,10 +224,13 @@ async function run() {
             res.send(matchedEvents)
         })
 
-        app.get('/myevents', async (req, res) => {
+        app.get('/myevents',  async (req, res) => {
             const email = req.query.email
             const query = {}
             if (email) {
+                // if(email !== req.token_email){
+                //     return res.status(403).send({message: 'Forbidden Access'})
+                // }
                 query.creatorEmail = email
             }
             const cursor = eventsCollection.find(query).sort({ eventDate: 1 })
@@ -236,8 +269,8 @@ async function run() {
 
 run().catch(console.dir)
 
-app.listen(port, () => {
-    console.log(`Better Tomorrow server is running on port: ${port}`);
-})
+// app.listen(port, () => {
+//     console.log(`Better Tomorrow server is running on port: ${port}`);
+// })
 
-// module.exports = app;
+module.exports = app;

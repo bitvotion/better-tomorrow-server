@@ -75,7 +75,7 @@ async function run() {
 
         app.delete('/events/:id', async (req, res) => {
             const id = req.params.id
-            const query = {_id: new ObjectId(id)}
+            const query = { _id: new ObjectId(id) }
             const result = await usersCollection.deleteOne(query)
             res.send(result)
         })
@@ -208,6 +208,8 @@ async function run() {
 }
 run().catch(console.dir)
 
-app.listen(port, () => {
-    console.log(`Better Tomorrow server is running on port: ${port}`);
-})
+// app.listen(port, () => {
+//     console.log(`Better Tomorrow server is running on port: ${port}`);
+// })
+
+module.exports = app;

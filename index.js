@@ -208,8 +208,8 @@ async function run() {
 }
 run().catch(console.dir)
 
-// app.listen(port, () => {
-//     console.log(`Better Tomorrow server is running on port: ${port}`);
-// })
+app.listen(port, () => {
+    console.log(`Better Tomorrow server is running on port: ${port}`);
+})
 
-module.exports = app;
+// module.exports = app;

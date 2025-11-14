@@ -84,20 +84,10 @@ async function run() {
             res.send(result)
         })
 
-        app.patch('/events/:id', async (req, res) => {
+        app.patch('/events/:id', verifyFireBaseToken, async (req, res) => {
             const id = req.params.id
             const updateEvent = req.body
-            // const userEmail = req.body.email
 
-            // const event = await eventsCollection.findOne({ _id: new ObjectId(id) })
-
-            // if (!event) {
-            //     return res.status(404).send({ message: "Event not found" });
-            // }
-
-            // if (event.creatorEmail !== userEmail) {
-            //     return res.status(403).send({ message: "You are not allowed to edit this event" });
-            // }
 
             try {
                 const updateFields = {}
@@ -127,7 +117,7 @@ async function run() {
             }
         })
 
-        app.delete('/events/:id', async (req, res) => {
+        app.delete('/events/:id', verifyFireBaseToken, async (req, res) => {
             const id = req.params.id
             // const userEmail = req.body.email
 
@@ -135,25 +125,14 @@ async function run() {
                 const query = { _id: new ObjectId(id) }
                 const result = await eventsCollection.deleteOne(query)
 
-                if(result.deletedCount === 0) {
-                    return res.status(404).send({message: "Event not found", deletedCount: 0})
+                if (result.deletedCount === 0) {
+                    return res.status(404).send({ message: "Event not found", deletedCount: 0 })
                 }
-                res.send({message: "Event deleted successfully", deletedCount: result.deletedCount})
+                res.send({ message: "Event deleted successfully", deletedCount: result.deletedCount })
             } catch {
                 console.error("DELETE/events /:id", error);
-                res.status(500).send({message: "Server error", error: error.message})
+                res.status(500).send({ message: "Server error", error: error.message })
             }
-            // const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
-            // if (!event) {
-            //     return res.status(404).send({ message: "Event not found" });
-            // }
-            // if (event.creatorEmail !== userEmail) {
-            //     return res.status(403).send({ message: "You are not allowed to delete this event" });
-            // }
-            // const query = { _id: new ObjectId(id) }
-            // const result = await eventsCollection.deleteOne(query)
-            // res.send(result)
-
         })
 
         app.get('/events/upcoming', async (req, res) => {
@@ -243,8 +222,8 @@ async function run() {
             const query = {}
             if (email) {
                 query.creatorEmail = email
-                if(email !== req.token_email) {
-                    return res.status(403).send({message: 'Forbidden access'})
+                if (email !== req.token_email) {
+                    return res.status(403).send({ message: 'Forbidden access' })
                 }
             }
             const cursor = eventsCollection.find(query).sort({ eventDate: 1 })

@@ -5,49 +5,40 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express()
 const port = process.env.PORT || 3000
 
-// {
-//     origin: "*",
-//     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-//     credentials: true,
-// }
+const admin = require("firebase-admin");
 
-// const admin = require("firebase-admin");
+const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, "base64").toString("utf8");
+const serviceAccount = JSON.parse(decoded);
 
-// const serviceAccount = require("./better-tomorrow-firebase-adminsdk.json");
-
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount)
-// });
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
 
 
 // Middleware
 app.use(cors())
 app.use(express.json())
 
-// const logger = (req, res, next) => {
-//     next()
-// }
 
-// const verifyFireBaseToken = async (req, res, next) => {
+const verifyFireBaseToken = async (req, res, next) => {
 
-//     if(!req.headers.authorization){
-//         return res.status(401).send({message: 'Unauthorized Access'})
-//     }
-//     const token = req.headers.authorization.split(' ')[1]
-//     if(!token){
-//         return res.status(401).send({message: 'Unauthorized Access'})
-//     }
-//     try{
-//         const userInfo = await admin.auth().verifyIdToken(token)
-//         req.token_email = userInfo.email
-//         console.log('Here', userInfo);
-//         next()
-//     }
-//     catch{
-//         return res.status(401).send({message: 'Unauthorized Access'})
-//     }
-//     next()
-// }
+    if (!req.headers.authorization) {
+        return res.status(401).send({ message: 'Unauthorized Access' })
+    }
+    const token = req.headers.authorization.split(' ')[1]
+    if (!token) {
+        return res.status(401).send({ message: 'Unauthorized Access' })
+    }
+    try {
+        const userInfo = await admin.auth().verifyIdToken(token)
+        req.token_email = userInfo.email
+        // console.log('Here', userInfo);
+        next()
+    }
+    catch {
+        return res.status(401).send({ message: 'Unauthorized Access' })
+    }
+}
 
 const uri = process.env.MONGODB_URI;
 
@@ -75,7 +66,8 @@ async function run() {
 
         // API
 
-        app.post('/events', async (req, res) => {
+        app.post('/events', verifyFireBaseToken, async (req, res) => {
+            console.log(req.headers);
             const newEvent = req.body
             const result = await eventsCollection.insertOne(newEvent)
             res.send(result)
@@ -95,50 +87,72 @@ async function run() {
         app.patch('/events/:id', async (req, res) => {
             const id = req.params.id
             const updateEvent = req.body
-            const userEmail = req.body.email
+            // const userEmail = req.body.email
 
-            const event = await eventsCollection.findOne({ _id: new ObjectId(id) })
+            // const event = await eventsCollection.findOne({ _id: new ObjectId(id) })
 
-            if (!event) {
-                return res.status(404).send({ message: "Event not found" });
-            }
+            // if (!event) {
+            //     return res.status(404).send({ message: "Event not found" });
+            // }
 
-            if (event.creatorEmail !== userEmail) {
-                return res.status(403).send({ message: "You are not allowed to edit this event" });
-            }
+            // if (event.creatorEmail !== userEmail) {
+            //     return res.status(403).send({ message: "You are not allowed to edit this event" });
+            // }
 
-            const query = { _id: new ObjectId(id) }
-            const update = {
-                $set: {
-                    title: updateEvent.title,
-                    description: updateEvent.description,
-                    eventType: updateEvent.eventType,
-                    thumbnailUrl: updateEvent.thumbnailUrl,
-                    location: updateEvent.location,
-                    eventDate: updateEvent.eventDate,
-                    updatedAt: new Date(),
+            try {
+                const updateFields = {}
+
+                if (updateEvent.title) updateFields.title = updateEvent.title
+                if (updateEvent.description) updateFields.description = updateEvent.description
+                if (updateEvent.eventType) updateFields.eventType = updateEvent.eventType
+                if (updateEvent.thumbnailUrl) updateFields.thumbnailUrl = updateEvent.thumbnailUrl
+                if (updateEvent.location) updateFields.location = updateEvent.location
+                if (updateEvent.eventDate) updateFields.eventDate = new Date(updateEvent.eventDate)
+                updateFields.updatedAt = new Date()
+
+                const query = { _id: new ObjectId(id) }
+
+                const update = { $set: updateFields }
+                const result = await eventsCollection.updateOne(query, update)
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({ message: "Event not found or no changes made", modifiedCount: 0 })
                 }
-            }
-            const options = {}
-            const result = await eventsCollection.updateOne(query, update, options)
-            res.send(result)
 
+                res.send({ message: "Event updated successfully", modifiedCount: result.modifiedCount })
+            }
+            catch (error) {
+                console.error(error);
+                res.status(500).send({ message: "Server error", error })
+            }
         })
 
         app.delete('/events/:id', async (req, res) => {
             const id = req.params.id
-            const userEmail = req.body.email
-            console.log(req.headers);
-            const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
-            if (!event) {
-                return res.status(404).send({ message: "Event not found" });
+            // const userEmail = req.body.email
+
+            try {
+                const query = { _id: new ObjectId(id) }
+                const result = await eventsCollection.deleteOne(query)
+
+                if(result.deletedCount === 0) {
+                    return res.status(404).send({message: "Event not found", deletedCount: 0})
+                }
+                res.send({message: "Event deleted successfully", deletedCount: result.deletedCount})
+            } catch {
+                console.error("DELETE/events /:id", error);
+                res.status(500).send({message: "Server error", error: error.message})
             }
-            if (event.creatorEmail !== userEmail) {
-                return res.status(403).send({ message: "You are not allowed to delete this event" });
-            }
-            const query = { _id: new ObjectId(id) }
-            const result = await usersCollection.deleteOne(query)
-            res.send(result)
+            // const event = await eventsCollection.findOne({ _id: new ObjectId(id) });
+            // if (!event) {
+            //     return res.status(404).send({ message: "Event not found" });
+            // }
+            // if (event.creatorEmail !== userEmail) {
+            //     return res.status(403).send({ message: "You are not allowed to delete this event" });
+            // }
+            // const query = { _id: new ObjectId(id) }
+            // const result = await eventsCollection.deleteOne(query)
+            // res.send(result)
 
         })
 
@@ -224,14 +238,14 @@ async function run() {
             res.send(matchedEvents)
         })
 
-        app.get('/myevents', async (req, res) => {
+        app.get('/myevents', verifyFireBaseToken, async (req, res) => {
             const email = req.query.email
             const query = {}
             if (email) {
-                // if(email !== req.token_email){
-                //     return res.status(403).send({message: 'Forbidden Access'})
-                // }
                 query.creatorEmail = email
+                if(email !== req.token_email) {
+                    return res.status(403).send({message: 'Forbidden access'})
+                }
             }
             const cursor = eventsCollection.find(query).sort({ eventDate: 1 })
             const result = await cursor.toArray()

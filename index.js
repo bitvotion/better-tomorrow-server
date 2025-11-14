@@ -9,7 +9,7 @@ const admin = require("firebase-admin");
 
 const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, "base64").toString("utf8");
 const serviceAccount = JSON.parse(decoded);
-
+console.log(decoded);
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
 });
@@ -166,7 +166,7 @@ async function run() {
 
 
 
-        app.post('/joined', async (req, res) => {
+        app.post('/joined', verifyFireBaseToken, async (req, res) => {
             const joinEventData = req.body
             if (!joinEventData.userEmail || !joinEventData.eventId) {
                 return res.status(400).send({ message: "Missing user or event information" })
@@ -203,7 +203,7 @@ async function run() {
             res.status(200).send(result)
         })
 
-        app.get('/joined-events', async (req, res) => {
+        app.get('/joined-events', verifyFireBaseToken, async (req, res) => {
             const email = req.query.email
 
             const joinedEvents = await joinedCollection.find({ userEmail: email }).toArray()
@@ -252,8 +252,8 @@ async function run() {
         })
 
         // Send Ping to confirm connection
-        // await client.db("admin").command({ ping: 1 })
-        // console.log("Pinged you deployment. Connected to MongoDB");
+        await client.db("admin").command({ ping: 1 })
+        console.log("Pinged you deployment. Connected to MongoDB");
     }
     finally {
 

@@ -9,7 +9,7 @@ const admin = require("firebase-admin");
 
 const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, "base64").toString("utf8");
 const serviceAccount = JSON.parse(decoded);
-console.log(decoded);
+// console.log(decoded);
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
 });
@@ -97,7 +97,7 @@ async function run() {
                 if (updateEvent.eventType) updateFields.eventType = updateEvent.eventType
                 if (updateEvent.thumbnailUrl) updateFields.thumbnailUrl = updateEvent.thumbnailUrl
                 if (updateEvent.location) updateFields.location = updateEvent.location
-                if (updateEvent.eventDate) updateFields.eventDate = new Date(updateEvent.eventDate)
+                if (updateEvent.eventDate) updateFields.eventDate = updateEvent.eventDate
                 updateFields.updatedAt = new Date()
 
                 const query = { _id: new ObjectId(id) }
@@ -168,6 +168,7 @@ async function run() {
 
         app.post('/joined', verifyFireBaseToken, async (req, res) => {
             const joinEventData = req.body
+
             if (!joinEventData.userEmail || !joinEventData.eventId) {
                 return res.status(400).send({ message: "Missing user or event information" })
             }
@@ -179,7 +180,8 @@ async function run() {
             const alreadyJoined = await joinedCollection.findOne(query)
 
             if (alreadyJoined) {
-                return res.status(409).send({ message: "You have already joined this event" })
+                console.log(alreadyJoined);
+                return res.status(409).send({ message: 'You have already joined this event' })
             }
 
             const newJoin = {
